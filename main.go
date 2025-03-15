@@ -40,21 +40,16 @@ func (m Model) Init() tea.Cmd {
 	)
 }
 
-// Update handles messages and user input
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// Update the model with the new window size
 		m.width = msg.Width
 		m.height = msg.Height
-		
-		// Update list dimensions
 		m.list.SetSize(m.width-4, m.height-10)
 		
 		return m, nil
 		
 	case tea.KeyMsg:
-		// Clear error on any key press if there is an error
 		if m.err != nil {
 			m.err = nil
 			return m, nil
@@ -134,7 +129,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "e":
 				if m.currentEntry != nil {
-					// Switch to edit mode and populate text input with current content
 					m.textInput.SetValue(m.currentEntry.Content)
 					m.textInput.Focus()
 					m.state = editEntryView
@@ -147,16 +141,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "ctrl+c":
 				return m, tea.Quit
 			case "esc":
-				// Cancel editing and go back to view mode
 				m.state = viewEntryView
 				m.textInput.Reset()
 				return m, nil
 			case "enter":
 				if m.currentEntry != nil && m.textInput.Value() != "" {
-					// Update the entry content
 					m.currentEntry.Content = m.textInput.Value()
 					
-					// Save the updated entry
 					err := SaveEntry(m.currentEntry, m.config)
 					if err != nil {
 						m.err = err
@@ -186,31 +177,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// View renders the current UI
 func (m Model) View() string {
-	// Display error if there is one
 	if m.err != nil {
 		return fmt.Sprintf("Error: %v\nPress any key to continue", m.err)
 	}
 
-	// Adjust styles based on window size
 	listStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7D56F4")).
 		Padding(1, 2).
-		Width(m.width - 2)  // Adapt to window width
+		Width(m.width - 2)
 
 	createStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7D56F4")).
 		Padding(1, 2).
-		Width(m.width - 2)  // Adapt to window width
+		Width(m.width - 2)
 
 	viewStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7D56F4")).
 		Padding(1, 2).
-		Width(m.width - 2)  // Adapt to window width
+		Width(m.width - 2)
 
 	switch m.state {
 	case listView:
@@ -231,7 +219,6 @@ func (m Model) View() string {
 		)
 
 	case createView:
-		// Adjust text input width based on window size
 		m.textInput.Width = m.width - 10
 		
 		return createStyle.Render(
@@ -251,7 +238,7 @@ func (m Model) View() string {
 			fmt.Sprintf(
 				"%s\n\n%s\n\n%s\n\n%s",
 				titleStyle.Render("Journal Entry"),
-				dateStyle.Render(m.currentEntry.Date.Format("January 2, 2006 15:04:05")),
+				dateStyle.Render(m.currentEntry.Date.Format("January 1, 2006 15:04:05")),
 				m.currentEntry.Content,
 				helpStyle.Render("e: edit • d: delete • esc: back"),
 			),
@@ -262,7 +249,6 @@ func (m Model) View() string {
 			return "Error: No entry selected"
 		}
 		
-		// Adjust text input width based on window size
 		m.textInput.Width = m.width - 10
 		
 		return viewStyle.Render(
@@ -296,11 +282,9 @@ var (
 			Foreground(lipgloss.Color("#626262"))
 )
 
-// Messages
 type entriesLoadedMsg []list.Item
 type errMsg error
 
-// Commands
 func loadEntriesCmd(config *Config) tea.Cmd {
 	return func() tea.Msg {
 		entries, err := LoadEntries(config)
