@@ -19,7 +19,7 @@ git clone https://github.com/yourusername/journal-tui.git
 cd journal-tui
 
 # Build the application
-go build -o journal-tui
+go build -o bin/journal-tui
 
 # Install the application (optional)
 sudo cp journal-tui /usr/local/bin/
