@@ -240,11 +240,12 @@ func (m Model) View() string {
 		if m.currentEntry == nil {
 			return "Error: No entry selected"
 		}
+
 		return viewStyle.Render(
 			fmt.Sprintf(
 				"%s\n\n%s\n\n%s\n\n%s",
 				titleStyle.Render("Journal Entry"),
-				dateStyle.Render(m.currentEntry.Date.Format("January 1, 2006 15:04:05")),
+				dateStyle.Render(m.currentEntry.Date.Format("January 2, 2006 15:04:05")),
 				m.currentEntry.Content,
 				helpStyle.Render("e: edit • d: delete • esc: back"),
 			),
