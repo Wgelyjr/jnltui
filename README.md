@@ -1,6 +1,12 @@
 # Journal TUI
 
-A terminal-based journal application with a responsive interface.
+A terminal-based journal application with a responsive interface - written with Beepy in mind!
+
+In a color-enabled shell, it has a nice purple theme:
+![image](https://github.com/user-attachments/assets/8fab5392-cc78-4950-b1e4-06011c96163c)
+
+But it works with greyscale (and very small) terminals as well:
+![PXL_20250321_140437328 MP](https://github.com/user-attachments/assets/b68c5c3f-0b65-4868-9845-51c04ab7edd2)
 
 ## Features
 
