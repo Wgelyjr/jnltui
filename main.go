@@ -5,16 +5,15 @@ import (
 	"os"
 
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Model represents the application state
 type Model struct {
 	state        state
 	list         list.Model
-	textInput    textinput.Model
+	textarea     textarea.Model
 	currentEntry *Entry
 	err          error
 	width        int
@@ -22,7 +21,6 @@ type Model struct {
 	config       *Config
 }
 
-// State represents the current view of the application
 type state int
 
 const (
@@ -32,20 +30,27 @@ const (
 	editEntryView
 )
 
-// Init initializes the application
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		loadEntriesCmd(m.config),
 		tea.EnterAltScreen,
+		textarea.Blink,
 	)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		m.list.SetSize(m.width-4, m.height-10)
+		
+		// Update textarea size
+		m.textarea.SetWidth(m.width - 20)
+		m.textarea.SetHeight(m.height - 15)
 		
 		return m, nil
 		
@@ -62,7 +67,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			case "n":
 				m.state = createView
-				m.textInput.Focus()
+				m.textarea.Focus()
 				return m, nil
 			case "enter":
 				if len(m.list.Items()) > 0 {
@@ -90,25 +95,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			case "esc":
 				m.state = listView
-				m.textInput.Reset()
+				m.textarea.Reset()
 				return m, nil
 			case "enter":
-				if m.textInput.Value() != "" {
-					entry := NewEntry(m.textInput.Value())
+				if m.textarea.Value() != "" {
+					entry := NewEntry(m.textarea.Value())
 					err := SaveEntry(entry, m.config)
 					if err != nil {
 						m.err = err
 						return m, nil
 					}
-					m.textInput.Reset()
+					m.textarea.Reset()
 					m.state = listView
 					return m, loadEntriesCmd(m.config)
 				}
 			}
 
-			var cmd tea.Cmd
-			m.textInput, cmd = m.textInput.Update(msg)
-			return m, cmd
+			m.textarea, cmd = m.textarea.Update(msg)
+			cmds = append(cmds, cmd)
+			return m, tea.Batch(cmds...)
 
 		case viewEntryView:
 			switch msg.String() {
@@ -129,8 +134,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "e":
 				if m.currentEntry != nil {
-					m.textInput.SetValue(m.currentEntry.Content)
-					m.textInput.Focus()
+					m.textarea.SetValue(m.currentEntry.Content)
+					m.textarea.Focus()
 					m.state = editEntryView
 					return m, nil
 				}
@@ -142,11 +147,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			case "esc":
 				m.state = viewEntryView
-				m.textInput.Reset()
+				m.textarea.Reset()
 				return m, nil
 			case "enter":
-				if m.currentEntry != nil && m.textInput.Value() != "" {
-					m.currentEntry.Content = m.textInput.Value()
+				if m.currentEntry != nil && m.textarea.Value() != "" {
+					m.currentEntry.Content = m.textarea.Value()
 					
 					err := SaveEntry(m.currentEntry, m.config)
 					if err != nil {
@@ -154,15 +159,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 					
-					m.textInput.Reset()
+					m.textarea.Reset()
 					m.state = viewEntryView
 					return m, loadEntriesCmd(m.config)
 				}
 			}
 			
-			var cmd tea.Cmd
-			m.textInput, cmd = m.textInput.Update(msg)
-			return m, cmd
+			m.textarea, cmd = m.textarea.Update(msg)
+			cmds = append(cmds, cmd)
+			return m, tea.Batch(cmds...)
 		}
 
 	case entriesLoadedMsg:
@@ -186,19 +191,22 @@ func (m Model) View() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7D56F4")).
 		Padding(1, 2).
-		Width(m.width - 2)
+		Width(m.width - 2).
+		Height(m.height - 2)
 
 	createStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7D56F4")).
 		Padding(1, 2).
-		Width(m.width - 2)
+		Width(m.width - 2).
+		Height(m.height - 2)
 
 	viewStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7D56F4")).
 		Padding(1, 2).
-		Width(m.width - 2)
+		Width(m.width - 2).
+		Height(m.height - 2)
 
 	switch m.state {
 	case listView:
@@ -219,13 +227,11 @@ func (m Model) View() string {
 		)
 
 	case createView:
-		m.textInput.Width = m.width - 10
-		
 		return createStyle.Render(
 			fmt.Sprintf(
 				"%s\n\n%s\n\n%s",
 				titleStyle.Render("New Journal Entry"),
-				m.textInput.View(),
+				m.textarea.View(),
 				helpStyle.Render("enter: save • esc: cancel"),
 			),
 		)
@@ -249,14 +255,12 @@ func (m Model) View() string {
 			return "Error: No entry selected"
 		}
 		
-		m.textInput.Width = m.width - 10
-		
 		return viewStyle.Render(
 			fmt.Sprintf(
 				"%s\n\n%s\n\n%s\n\n%s",
 				titleStyle.Render("Edit Journal Entry"),
 				dateStyle.Render(m.currentEntry.Date.Format("January 2, 2006 15:04:05")),
-				m.textInput.View(),
+				m.textarea.View(),
 				helpStyle.Render("enter: save • esc: cancel"),
 			),
 		)
@@ -333,39 +337,42 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize text input for creating entries
-	ti := textinput.New()
-	ti.Placeholder = "Write your journal entry here..."
-	ti.CharLimit = 0
-	ti.Width = 50
+	// Default dimensions - will be updated when we get a WindowSizeMsg
+	defaultWidth, defaultHeight := 80, 24
 
-	// Initialize list for viewing entries
+	// Initialize textarea for creating entries
+	ta := textarea.New()
+	ta.Placeholder = "Write your journal entry here..."
+	ta.ShowLineNumbers = false
+	ta.Prompt = ""
+	ta.CharLimit = 0
+	
+	// Configure textarea to wrap text properly
+	ta.SetWidth(defaultWidth)
+	ta.SetHeight(defaultHeight - 15)
+
 	delegate := list.NewDefaultDelegate()
 	delegate.ShowDescription = true
 	delegate.SetSpacing(1)
 	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(lipgloss.Color("#FFFFFF")).Background(lipgloss.Color("#7D56F4"))
 	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.Foreground(lipgloss.Color("#DADADA")).Background(lipgloss.Color("#7D56F4"))
 	
-	// Default dimensions - will be updated when we get a WindowSizeMsg
-	defaultWidth, defaultHeight := 80, 24
-	
 	l := list.New([]list.Item{}, delegate, defaultWidth-4, defaultHeight-10)
-	l.SetShowTitle(false)  // We'll handle the title separately
+	l.SetShowTitle(false)
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 
-	// Initialize model
 	m := Model{
 		state:     listView,
 		list:      l,
-		textInput: ti,
+		textarea:  ta,
 		width:     defaultWidth,
 		height:    defaultHeight,
 		config:    config,
 	}
 
-	// Display configuration info
+	// Display configuration info - for debug stuff really
 	fmt.Printf("Journal entries directory: %s\n", config.EntriesDir)
 	if config.DevMode {
 		fmt.Println("Running in development mode")
@@ -373,14 +380,12 @@ func main() {
 		fmt.Println("Running in production mode")
 	}
 
-	// Load entries
 	p := tea.NewProgram(
 		m,
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)
-	
-	// Start the program
+
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running program: %v\n", err)
 		os.Exit(1)
